@@ -2,10 +2,15 @@
 
 ## Quick install
 
-```
-curl -sf https://gobinaries.com/wallyqs/ocsp-check | PREFIX=. sh
+```sh
+$ curl -sf https://gobinaries.com/wallyqs/ocsp-check | PREFIX=. sh
+  ==> Downloading github.com/wallyqs/ocsp-check@master
+  ==> Resolved version master to v0.1.0
+  ==> Downloading binary for darwin amd64
+  ==> Installing ocsp-check to .
+  ==> Installation complete
 
-./ocsp-check -h
+$ ./ocsp-check -h
 Usage: nats-ocsp-resp [-s server] [-creds file] [-nkey file] [-tlscert file] [-tlskey file] [-tlscacert file]
   -creds string
     	User Credentials File
@@ -24,13 +29,9 @@ Usage: nats-ocsp-resp [-s server] [-creds file] [-nkey file] [-tlscert file] [-t
 
 ## Example usage
 
-```
-ocsp-check -s localhost:4222 -tlscacert /tmp/ca-cert.pem 
-```
+```sh
+$ ocsp-check -s localhost:4222 -tlscacert /tmp/ca-cert.pem 
 
-Result: 
-
-```
 --- NATS OCSP Response ---
 Status: Good
 ProducedAt:  2021-06-21 21:59:00 +0000 UTC
