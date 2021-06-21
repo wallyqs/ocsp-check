@@ -38,6 +38,27 @@ func showUsageAndExit(exitcode int) {
 	os.Exit(exitcode)
 }
 
+func getOCSPStatus(s tls.ConnectionState) (*ocsp.Response, error) {
+	if len(s.VerifiedChains) == 0 {
+		return nil, fmt.Errorf("missing TLS verified chains")
+	}
+	chain := s.VerifiedChains[0]
+
+	if got, want := len(chain), 2; got < want {
+		return nil, fmt.Errorf("incomplete cert chain, got %d, want at least %d", got, want)
+	}
+	leaf, issuer := chain[0], chain[1]
+
+	resp, err := ocsp.ParseResponseForCert(s.OCSPResponse, leaf, issuer)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse OCSP response: %w", err)
+	}
+	if err := resp.CheckSignatureFrom(issuer); err != nil {
+		return resp, err
+	}
+	return resp, nil
+}
+
 func main() {
 	var urls = flag.String("s", nats.DefaultURL, "The nats server URLs (separated by comma)")
 	var userCreds = flag.String("creds", "", "User Credentials File")
@@ -76,11 +97,28 @@ func main() {
 	secure := nats.Secure(&tls.Config{
 		VerifyConnection: func(s tls.ConnectionState) error {
 			resp, err := getOCSPStatus(s)
+			if resp != nil {
+				log.Println("--- NATS OCSP Response ---")
+				switch resp.Status {
+				case ocsp.Good:
+					log.Println("Status: Good")
+				case ocsp.Revoked:
+					log.Println("Status: Revoked")
+					log.Println("RevokedAt : ", resp.RevokedAt)
+				case ocsp.Unknown:
+					log.Println("Status: Unknown")
+				default:
+					return fmt.Errorf("invalid staple status")
+				}
+				if resp.Status != ocsp.Good {
+					return fmt.Errorf("invalid staple")
+				}
+				log.Println("ProducedAt: ", resp.ProducedAt)
+				log.Println("ThisUpdate: ", resp.ThisUpdate)
+				log.Println("NextUpdate: ", resp.NextUpdate)
+			}
 			if err != nil {
 				return err
-			}
-			if resp.Status != ocsp.Good {
-				return fmt.Errorf("invalid staple")
 			}
 			return nil
 		},
@@ -107,25 +145,4 @@ func main() {
 		log.Fatalf("error: %v", err)
 	}
 	defer nc.Close()
-}
-
-func getOCSPStatus(s tls.ConnectionState) (*ocsp.Response, error) {
-	if len(s.VerifiedChains) == 0 {
-		return nil, fmt.Errorf("missing TLS verified chains")
-	}
-	chain := s.VerifiedChains[0]
-
-	if got, want := len(chain), 2; got < want {
-		return nil, fmt.Errorf("incomplete cert chain, got %d, want at least %d", got, want)
-	}
-	leaf, issuer := chain[0], chain[1]
-
-	resp, err := ocsp.ParseResponseForCert(s.OCSPResponse, leaf, issuer)
-	if err != nil {
-		return nil, fmt.Errorf("failed to parse OCSP response: %w", err)
-	}
-	if err := resp.CheckSignatureFrom(issuer); err != nil {
-		return resp, err
-	}
-	return resp, nil
 }
