@@ -54,7 +54,7 @@ func getOCSPStatus(s tls.ConnectionState) (*ocsp.Response, error) {
 		return nil, fmt.Errorf("failed to parse OCSP response: %w", err)
 	}
 	if err := resp.CheckSignatureFrom(issuer); err != nil {
-		return resp, err
+		return resp, fmt.Errorf("bad OCSP signature: %v", err)
 	}
 	return resp, nil
 }
@@ -116,6 +116,17 @@ func main() {
 				log.Println("ProducedAt: ", resp.ProducedAt)
 				log.Println("ThisUpdate: ", resp.ThisUpdate)
 				log.Println("NextUpdate: ", resp.NextUpdate)
+				log.Println("")
+				log.Println("--- OCSP Signature ---")
+				log.Printf("Verified: %v", err == nil)
+				log.Println("")
+				log.Println("--- Signature Algorithms ---")
+				log.Println("OCSP Response     :", resp.SignatureAlgorithm)
+
+				chain := s.VerifiedChains[0]
+				leaf, issuer := chain[0], chain[1]
+				log.Printf("Leaf Certificate  : %+v", leaf.SignatureAlgorithm)
+				log.Printf("Issuer Certificate: %+v", issuer.SignatureAlgorithm)
 			}
 			if err != nil {
 				return err
