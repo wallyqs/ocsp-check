@@ -17,6 +17,7 @@ import (
 	"crypto/tls"
 	"flag"
 	"fmt"
+	"io/ioutil"
 	"log"
 	"os"
 
@@ -66,6 +67,7 @@ func main() {
 	var tlsClientCert = flag.String("tlscert", "", "TLS client certificate file")
 	var tlsClientKey = flag.String("tlskey", "", "Private key file for client certificate")
 	var tlsCACert = flag.String("tlscacert", "", "CA certificate to verify peer against")
+	var outputFile = flag.String("o", "", "Output file to write the OCSP response")
 	var showHelp = flag.Bool("h", false, "Show help message")
 
 	log.SetFlags(0)
@@ -127,6 +129,15 @@ func main() {
 				leaf, issuer := chain[0], chain[1]
 				log.Printf("Leaf Certificate  : %+v", leaf.SignatureAlgorithm)
 				log.Printf("Issuer Certificate: %+v", issuer.SignatureAlgorithm)
+
+				if *outputFile != "" {
+					log.Println("")
+					log.Printf("Writing OCSP Staple to '%s'", *outputFile)
+					err := ioutil.WriteFile(*outputFile, s.OCSPResponse, 0644)
+					if err != nil {
+						return err
+					}
+				}
 			}
 			if err != nil {
 				return err
